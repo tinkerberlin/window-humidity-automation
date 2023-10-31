@@ -1,0 +1,83 @@
+blueprint:
+  name: room_humidity_automation
+  description: Opens a window if the humidity goes up in that room. But it checks if there's rain or if shades/covers are closed that would prevent the window from opening.
+  domain: automation
+  input:
+    humidity:
+      name: Humidity
+      description: 'humidity sensor; needs to turn "on" for this to work (on = humid, open window; off = not-humid, do not open the window.'
+      selector:
+        entity:
+    duration:
+      name: Duration
+      description: 'How long does the humidity sensor have to be "humid" for this automation to fire.'
+      default: 2.0
+      selector:
+        number:
+            min: 0.0
+            max: 60.0
+            unit_of_measurement: minutes
+            step: 1.0
+            mode: slider
+    window:
+      name: Window
+      description: 'The window (on = closed; off = open)'
+      selector:
+        entity:
+    cover:
+      name: Cover
+      description: 'The cover (on = closed; off = open)'
+      selector:
+        entity:
+    rain:
+      name: Rain
+      description: 'rain sensor (on = rain; off = no rain)'
+      selector:
+        entity:
+#  source_url: insert URL
+trigger:
+  - platform: state
+    entity_id:
+      - !input humidity
+    to: "on"
+    for:
+      hours: 0
+      minutes: !input duration
+      seconds: 0
+condition: []
+action:
+  - if:
+      - condition: state
+        entity_id: !input window
+        state: "on"
+    then:
+      - stop: window already closed
+        response_variable: window-already-closed
+    else:
+      - if:
+          - condition: state
+            entity_id: !input rain
+            state: "on"
+        then:
+          - stop: It is raining
+            response_variable: it-is-raining
+        else:
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input cover
+                    state: "on"
+                sequence:
+                  - stop: Widow open and cover is closed. How?
+                    response_variable: error-window-open_cover-closed
+              - conditions:
+                  - condition: state
+                    entity_id: !input cover
+                    state: "off"
+                sequence:
+                  - service: input_boolean.turn_off
+                    data: {}
+                    target:
+                      entity_id: !input window
+mode: single
+
